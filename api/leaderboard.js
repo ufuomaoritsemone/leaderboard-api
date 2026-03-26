@@ -1,4 +1,6 @@
-const { kv } = require('@vercel/kv');
+const Redis = require('ioredis');
+// Connects to the Redis instance using the REDIS_URL environment variable
+const redis = new Redis(process.env.REDIS_URL);
 
 module.exports = async function handler(req, res) {
   // Add CORS headers for cross-origin requests
@@ -19,7 +21,8 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const records = await kv.get(KV_KEY) || [];
+      const data = await redis.get(KV_KEY);
+      const records = data ? JSON.parse(data) : [];
       return res.status(200).json(records);
 
     } else if (req.method === 'POST') {
@@ -29,7 +32,8 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      let records = await kv.get(KV_KEY) || [];
+      const data = await redis.get(KV_KEY);
+      let records = data ? JSON.parse(data) : [];
       
       records.push({
         name: String(name).toUpperCase(),
@@ -51,7 +55,7 @@ module.exports = async function handler(req, res) {
       // Keep top 50
       if (records.length > 50) records.splice(50);
 
-      await kv.set(KV_KEY, records);
+      await redis.set(KV_KEY, JSON.stringify(records));
       
       return res.status(200).json(records);
     } else {
